@@ -57,10 +57,10 @@ module spi_master#(
 
 
     //SPI Driver
-    enum logic [2:0] {
-        WAIT_XFER_REQ  ,
-        WRITE_START_BIT,
-        WRITE_DATA     
+    enum logic [1:0] {
+        WAIT_XFER_REQ,
+        SCLK_LOW     ,
+        SCLK_HIGH     
     } state_c, state_r;
 
     logic [MAX_XFER_SIZE-1:0] piso_buff_c, piso_buff_r,
@@ -85,7 +85,7 @@ module spi_master#(
     end 
 
     always_comb begin 
-        state_c     = WAIT_MOSI_REQ;
+        state_c     = WAIT_XFER_REQ;
         xfer_cnt_c  = xfer_cnt_r;
         piso_ack_c  = 0;
         mosi_c      = mosi_r;
@@ -94,23 +94,37 @@ module spi_master#(
         sipo_buff_c = sipo_buff_r;
         case(mosi_state_r)
             WAIT_XFER_REQ : begin 
+                xfer_cnt_c = 0;
                 if(i_piso_req) begin 
-                    state_c = WRITE_START_BIT;
+                    state_c = SCLK_LOW;
                     cs_n_c  = 0;
-
+                    mosi_c  = i_piso_data[xfer_cnt_r];
                 end 
             end 
-            WRITE_START_BIT : begin 
-
+            SCLK_LOW : begin 
+                state_c = SCLK_LOW;
+                cs_n_c  = 0;
+                if(sclk_r) begin 
+                    state_c = SCLK_HIGH;
+                end 
             end 
-            WRITE_DATA : begin 
-
+            SCLK_HIGH : begin 
+                state_c = SCLK_HIGH;
+                cs_n_c  = 0;
+                if(!sclk_r) begin 
+                    state_c = SCLK_LOW;
+                end 
             end 
         endcase 
     end 
 
     //Output Assignments
-    assign o_piso_ack = piso_ack_r;
+    assign o_piso_ack   = piso_ack_r ;
+    assign o_sipo_data  = sipo_buff_r;
+    assign o_sipo_rdy   = xfer_done_r;
+    assign o_slave_sclk = sclk_r     ;
+    assign o_slave_mosi = mosi_r     ;
+    assign o_slave_cs_n = 
 
 endmodule
 
