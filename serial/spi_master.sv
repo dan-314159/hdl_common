@@ -33,7 +33,7 @@ module spi_master#(
 
 
     //Slave Clock Driver
-    localparam CLOCK_RATIO = SYSCLK_FREQ_MHZ/SCLK_FREQ_KHZ;
+    localparam CLOCK_RATIO = $ceil(SYSCLK_FREQ_MHZ/SCLK_FREQ_KHZ);
 
     logic sclk_c, sclk_r;
 
@@ -56,32 +56,49 @@ module spi_master#(
     end 
 
 
-    //MOSI State Machine
+    //SPI Driver
     enum logic [2:0] {
-        WAIT_MOSI_REQ  ,
+        WAIT_XFER_REQ  ,
         WRITE_START_BIT,
-        WRITE_DATA   
-    } mosi_state_c, mosi_state_r;
+        WRITE_DATA     
+    } state_c, state_r;
 
+    logic [MAX_XFER_SIZE-1:0] piso_buff_c, piso_buff_r,
+                              sipo_buff_c, sipo_buff_r;
     logic [XFER_CNT_WIDTH-1:0] xfer_cnt_c, xfer_cnt_r;
+
+    logic piso_ack_c, piso_ack_r;
+    logic xfer_done_c, xfer_done_r;
+
+    logic mosi_c, mosi_r;
     logic cs_n_c, cs_n_r;
-    logic mosi_ack_c, mosi_ack_r;
 
     always_ff@(posedge i_sys_clk) begin 
-        mosi_state_r  <= mosi_state_c;
-        mosi_index_r  <= mosi_index_c;
-        mosi_ack_r    <= mosi_ack_c;
-        cs_n_r        <= cs_n_c;
+        state_r     <= state_c;
+        xfer_cnt_r  <= xfer_cnt_c;
+        piso_ack_r  <= piso_ack_c;
+        mosi_r      <= mosi_c;
+        cs_n_r      <= cs_n_c;
+        piso_buff_r <= piso_buff_c;
+        sipo_buff_r <= sipo_buff_c;
+        xfer_done_r <= xfer_done_c;
     end 
 
     always_comb begin 
-        mosi_state_c  = WAIT_MOSI_REQ;
-        mosi_index_c  = 
-        mosi_ack_c    = 0;
-        cs_n_c        = 1;
+        state_c     = WAIT_MOSI_REQ;
+        xfer_cnt_c  = xfer_cnt_r;
+        piso_ack_c  = 0;
+        mosi_c      = mosi_r;
+        cs_n_c      = 1;
+        piso_buff_c = piso_buff_r;
+        sipo_buff_c = sipo_buff_r;
         case(mosi_state_r)
-            WAIT_MOSI_REQ : begin 
+            WAIT_XFER_REQ : begin 
+                if(i_piso_req) begin 
+                    state_c = WRITE_START_BIT;
+                    cs_n_c  = 0;
 
+                end 
             end 
             WRITE_START_BIT : begin 
 
@@ -92,8 +109,8 @@ module spi_master#(
         endcase 
     end 
 
-    //MISO State Machine
-
+    //Output Assignments
+    assign o_piso_ack = piso_ack_r;
 
 endmodule
 
