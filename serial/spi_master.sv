@@ -37,12 +37,22 @@ module spi_master#(
 
     logic sclk_c, sclk_r;
 
-    always_ff@(posedge i_sys_clk) begin 
+    logic [$clog2(CLOCK_RATIO)-1:0] sclk_cnt_c, sclk_cnt_r;
 
+    always_ff@(posedge i_sys_clk) begin 
+        sclk_r     <= sclk_c;
+        sclk_cnt_r <= sclk_cnt_c;
     end 
 
     always_comb begin 
-
+        sclk_c     = sclk_cnt_r >= (CLOCK_RATIO >> 1);
+        sclk_cnt_c = 0;
+        if(~o_slave_cs_n) begin 
+            sclk_cnt_c = sclk_cnt_r + 1;
+            if(sclk_cnt_r == CLOCK_RATIO) begin 
+                sclk_cnt_c == 0;
+            end 
+        end 
     end 
 
 
@@ -53,9 +63,10 @@ module spi_master#(
         WRITE_DATA   
     } mosi_state_c, mosi_state_r;
 
-    logic [MOSI_CNT_WIDTH-1:0] mosi_index_c, mosi_index_r;
+    logic [XFER_CNT_WIDTH-1:0] xfer_cnt_c, xfer_cnt_r;
     logic cs_n_c, cs_n_r;
     logic mosi_ack_c, mosi_ack_r;
+
     always_ff@(posedge i_sys_clk) begin 
         mosi_state_r  <= mosi_state_c;
         mosi_index_r  <= mosi_index_c;
